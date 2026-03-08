@@ -13,6 +13,8 @@ dependencies = [
     "streamlit",
     "python-dotenv",
     "tenacity",
+    "apify-client",
+    "twilio",
 ]
 
 [project.scripts]
