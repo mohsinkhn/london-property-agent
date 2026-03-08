@@ -1,0 +1,19 @@
+[project]
+name = "london-property-agent"
+version = "0.1.0"
+description = "AI agent that finds houses in London using Claude Agent SDK + MCP servers"
+requires-python = ">=3.11"
+dependencies = [
+    "claude-agent-sdk",
+    "mcp[cli]>=1.2.0",
+    "httpx",
+    "beautifulsoup4",
+    "pydantic",
+    "pydantic-settings",
+    "streamlit",
+    "python-dotenv",
+    "tenacity",
+]
+
+[project.scripts]
+hunt = "src.agent.main:cli"
