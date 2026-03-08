@@ -100,8 +100,28 @@ async def get_commute_time(
         params["app_key"] = TFL_APP_KEY
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             response = await client.get(url, params=params)
+
+            # Handle 300 disambiguation — pick the first match and retry
+            if response.status_code == 300:
+                disambig = response.json()
+                # Check both from and to disambiguation
+                for key in ("toLocationDisambiguation", "fromLocationDisambiguation"):
+                    options = disambig.get(key, {}).get("disambiguationOptions", [])
+                    if options:
+                        # Use the top match's parameterValue (coordinates or ID)
+                        best = options[0].get("parameterValue", "")
+                        place_name = options[0].get("place", {}).get("commonName", "")
+                        if best:
+                            if key == "toLocationDisambiguation":
+                                url = f"{BASE_URL}/{from_location}/to/{best}"
+                            else:
+                                url = f"{BASE_URL}/{best}/to/{to_location}"
+
+                # Retry with resolved location
+                response = await client.get(url, params=params)
+
             response.raise_for_status()
             data = response.json()
     except httpx.HTTPStatusError as e:

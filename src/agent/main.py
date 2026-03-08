@@ -26,6 +26,9 @@ from src.agent.prompt import SYSTEM_PROMPT
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
+# Allow running inside a Claude Code session (e.g. during development)
+os.environ.pop("CLAUDECODE", None)
+
 # ── MCP server paths ───────────────────────────────────────────────────────
 MCP_DIR = PROJECT_ROOT / "src" / "mcp_servers"
 
@@ -50,6 +53,7 @@ def build_mcp_servers() -> dict:
         "schools": _stdio_server("schools.py"),
         "land_registry": _stdio_server("land_registry.py"),
         "epc": _stdio_server("epc.py"),
+        "whatsapp": _stdio_server("whatsapp.py"),
     }
     return servers
 
@@ -59,6 +63,8 @@ def build_allowed_tools() -> list[str]:
     return [
         # Skills — Claude autonomously invokes these based on task context
         "Skill",
+        # Built-in tools for reading/updating Memory (CLAUDE.md)
+        "Read", "Edit",
         # MCP data source tools
         "mcp__rightmove__*",
         "mcp__zoopla__*",
@@ -67,10 +73,11 @@ def build_allowed_tools() -> list[str]:
         "mcp__schools__*",
         "mcp__land_registry__*",
         "mcp__epc__*",
+        "mcp__whatsapp__*",
     ]
 
 
-async def run_agent(config: PropertySearchConfig, verbose: bool = False) -> str:
+async def run_agent(config: PropertySearchConfig, verbose: bool = False, **kwargs) -> str:
     """Run the property hunting agent and return the final result text."""
     mcp_servers = build_mcp_servers()
     allowed_tools = build_allowed_tools()
@@ -84,6 +91,8 @@ async def run_agent(config: PropertySearchConfig, verbose: bool = False) -> str:
         permission_mode="bypassPermissions",
     )
 
+    whatsapp_num = kwargs.get("whatsapp", "")
+
     user_prompt = (
         f"Find me the best properties to buy in London matching these criteria:\n\n"
         f"{config.to_prompt()}\n\n"
@@ -91,6 +100,11 @@ async def run_agent(config: PropertySearchConfig, verbose: bool = False) -> str:
         f"crime stats, school ratings, sold prices, and EPC data, then score and "
         f"rank them. Return the top 10."
     )
+    if whatsapp_num:
+        user_prompt += (
+            f"\n\nAfter ranking, send the top 10 summary to WhatsApp number {whatsapp_num} "
+            f"using the send_property_summary tool."
+        )
 
     result_text = ""
 
@@ -154,6 +168,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--max-commute", type=int, default=45, help="Max commute minutes"
     )
+    p.add_argument(
+        "--whatsapp", default="", help="WhatsApp number to send results to (e.g. +447700900000)"
+    )
     p.add_argument("--verbose", "-v", action="store_true", help="Show all agent output")
     return p.parse_args()
 
@@ -176,7 +193,7 @@ def cli() -> None:
     print(f"Search: {config.to_prompt()}")
     print("=" * 60)
 
-    result = asyncio.run(run_agent(config, verbose=args.verbose))
+    result = asyncio.run(run_agent(config, verbose=args.verbose, whatsapp=args.whatsapp))
     save_results(result, PROJECT_ROOT / "data")
 
 

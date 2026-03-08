@@ -38,6 +38,7 @@ async def get_sold_prices(
 
     sparql_query = f"""PREFIX lrppi: <http://landregistry.data.gov.uk/def/ppi/>
 PREFIX lrcommon: <http://landregistry.data.gov.uk/def/common/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 SELECT ?address ?price ?date ?type
 WHERE {{
